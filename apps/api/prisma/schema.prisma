@@ -1,0 +1,431 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  HR
+  MANAGER
+  EMPLOYEE
+  FINANCE
+  SALES
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  CASUAL
+  UNPAID
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  HALF_DAY
+}
+
+enum PayrollStatus {
+  PENDING
+  PAID
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PAID
+  OVERDUE
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  EXPIRED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  LOST
+}
+
+enum DealStatus {
+  WON
+  LOST
+  PENDING
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum DocCategory {
+  POLICY
+  HANDBOOK
+  RESUME
+  INVOICE
+  OTHER
+}
+
+model User {
+  id                    String        @id @default(uuid())
+  email                 String        @unique
+  password              String
+  name                  String
+  role                  Role          @default(EMPLOYEE)
+  isVerified            Boolean       @default(false)
+  verificationToken     String?
+  resetToken            String?
+  resetTokenExpires     DateTime?
+  refreshToken          String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  
+  employeeProfile       Employee?     @relation(fields: [employeeProfileId], references: [id])
+  employeeProfileId     String?       @unique
+  
+  notifications         Notification[]
+  activityLogs          ActivityLog[]
+  auditLogs             AuditLog[]
+  assignedTasks         Task[]        @relation("AssignedTasks")
+  hostedMeetings        Meeting[]     @relation("HostedMeetings")
+}
+
+model Department {
+  id          String        @id @default(uuid())
+  name        String        @unique
+  description String?
+  managerId   String?
+  createdAt   DateTime      @default(now())
+  
+  designations Designation[]
+  employees    Employee[]
+}
+
+model Designation {
+  id            String      @id @default(uuid())
+  title         String
+  basicSalary   Float       @default(0.0)
+  departmentId  String
+  department    Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  employees     Employee[]
+}
+
+model Employee {
+  id             String          @id @default(uuid())
+  firstName      String
+  lastName       String
+  email          String          @unique
+  phone          String?
+  address        String?
+  profilePhoto   String?
+  status         String          @default("Active") // Active, Terminated, Resigned, Suspended
+  joiningDate    DateTime        @default(now())
+  salary         Float           @default(0.0)
+  
+  departmentId   String
+  department     Department      @relation(fields: [departmentId], references: [id])
+  designationId  String
+  designation    Designation     @relation(fields: [designationId], references: [id])
+  
+  user           User?
+  attendance     Attendance[]
+  leaveRequests  LeaveRequest[]
+  payrolls       Payroll[]
+  documents      Document[]
+  reviews        PerformanceReview[]
+}
+
+model Attendance {
+  id            String           @id @default(uuid())
+  employeeId    String
+  employee      Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date          DateTime         @db.Date
+  clockIn       DateTime
+  clockOut      DateTime?
+  status        AttendanceStatus @default(PRESENT)
+  overtimeHours Float            @default(0.0)
+  lateMinutes   Int              @default(0)
+  
+  @@unique([employeeId, date])
+}
+
+model LeaveRequest {
+  id           String      @id @default(uuid())
+  employeeId   String
+  employee     Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType    LeaveType   @default(ANNUAL)
+  startDate    DateTime
+  endDate      DateTime
+  status       LeaveStatus @default(PENDING)
+  reason       String
+  approvedBy   String?     // Name or ID of approver
+  createdAt    DateTime    @default(now())
+}
+
+model Payroll {
+  id            String        @id @default(uuid())
+  employeeId    String
+  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  month         Int
+  year          Int
+  basicSalary   Float
+  allowance     Float         @default(0.0)
+  deductions    Float         @default(0.0)
+  bonus         Float         @default(0.0)
+  tax           Float         @default(0.0)
+  netSalary     Float
+  status        PayrollStatus @default(PENDING)
+  payslipUrl    String?
+  createdAt     DateTime      @default(now())
+
+  @@unique([employeeId, month, year])
+}
+
+model PerformanceReview {
+  id             String    @id @default(uuid())
+  employeeId     String
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewerName   String
+  reviewDate     DateTime  @default(now())
+  score          Int       // 1 to 5
+  feedback       String
+  goals          String?
+}
+
+model Product {
+  id          String        @id @default(uuid())
+  name        String
+  sku         String        @unique
+  barcode     String?       @unique
+  description String?
+  price       Float
+  cost        Float
+  stock       Int           @default(0)
+  minStock    Int           @default(5)
+  categoryId  String
+  category    Category      @relation(fields: [categoryId], references: [id])
+  supplierId  String
+  supplier    Supplier      @relation(fields: [supplierId], references: [id])
+  image       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  products    Product[]
+}
+
+model Supplier {
+  id             String          @id @default(uuid())
+  name           String
+  contactName    String?
+  email          String?         @unique
+  phone          String?
+  address        String?
+  products       Product[]
+  purchaseOrders PurchaseOrder[]
+}
+
+model PurchaseOrder {
+  id           String      @id @default(uuid())
+  supplierId   String
+  supplier     Supplier    @relation(fields: [supplierId], references: [id])
+  status       String      @default("Draft") // Draft, Ordered, Received, Cancelled
+  totalAmount  Float
+  orderDate    DateTime    @default(now())
+  expectedDate DateTime?
+  items        Json        // Array of items { productId, quantity, cost }
+}
+
+model Customer {
+  id           String        @id @default(uuid())
+  name         String
+  email        String?       @unique
+  phone        String?
+  company      String?
+  status       String        @default("Lead") // Lead, Opportunity, Deal, Customer
+  notes        String?
+  createdAt    DateTime      @default(now())
+  
+  orders       Order[]
+  quotations   Quotation[]
+  leads        Lead[]
+  opportunities Opportunity[]
+  deals        Deal[]
+}
+
+model Order {
+  id           String      @id @default(uuid())
+  customerId   String
+  customer     Customer    @relation(fields: [customerId], references: [id])
+  orderDate    DateTime    @default(now())
+  status       OrderStatus @default(PENDING)
+  totalAmount  Float
+  gstAmount    Float       @default(0.0)
+  items        Json        // Array of items { productId, quantity, price }
+  
+  invoice      Invoice?
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  orderId       String        @unique
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  invoiceNumber String        @unique
+  issueDate     DateTime      @default(now())
+  dueDate       DateTime
+  status        InvoiceStatus @default(UNPAID)
+  totalAmount   Float
+  taxAmount     Float         @default(0.0)
+  pdfUrl        String?
+}
+
+model Quotation {
+  id           String          @id @default(uuid())
+  customerId   String
+  customer     Customer        @relation(fields: [customerId], references: [id])
+  title        String
+  items        Json            // Array of items
+  totalAmount  Float
+  status       QuotationStatus @default(DRAFT)
+  createdAt    DateTime        @default(now())
+}
+
+model Lead {
+  id           String      @id @default(uuid())
+  customerId   String
+  customer     Customer    @relation(fields: [customerId], references: [id])
+  status       LeadStatus  @default(NEW)
+  value        Float       @default(0.0)
+  source       String?     // Web, Referral, Email Campaign, etc.
+  createdAt    DateTime    @default(now())
+}
+
+model Opportunity {
+  id           String      @id @default(uuid())
+  customerId   String
+  customer     Customer    @relation(fields: [customerId], references: [id])
+  title        String
+  value        Float
+  probability  Int         // Percentage 0-100
+  stage        String      // Proposal, Negotiation, etc.
+  closeDate    DateTime?
+}
+
+model Deal {
+  id           String      @id @default(uuid())
+  customerId   String
+  customer     Customer    @relation(fields: [customerId], references: [id])
+  title        String
+  value        Float
+  status       DealStatus  @default(PENDING)
+  closeDate    DateTime?
+  createdAt    DateTime    @default(now())
+}
+
+model Transaction {
+  id            String          @id @default(uuid())
+  type          TransactionType
+  category      String          // e.g. Salary, Utilities, Product Sales, Marketing
+  amount        Float
+  date          DateTime        @default(now())
+  description   String?
+  referenceId   String?         // Link to invoice, payroll, etc.
+  createdAt     DateTime        @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  type      String   @default("info") // info, warning, success, error
+  createdAt DateTime @default(now())
+}
+
+model Task {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  status      String    @default("Pending") // Pending, InProgress, Completed
+  priority    String    @default("Medium") // Low, Medium, High
+  dueDate     DateTime?
+  assignedToId String
+  assignedTo  User      @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+}
+
+model Meeting {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  location    String?
+  hostId      String
+  host        User     @relation("HostedMeetings", fields: [hostId], references: [id], onDelete: Cascade)
+  attendees   Json?    // Array of emails/names
+  createdAt   DateTime @default(now())
+}
+
+model Document {
+  id           String      @id @default(uuid())
+  name         String
+  fileUrl      String
+  fileType     String
+  category     DocCategory @default(OTHER)
+  size         Int
+  employeeId   String?
+  employee     Employee?   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  description  String?
+  createdAt    DateTime    @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  modelName  String
+  recordId   String
+  action     String   // CREATE, UPDATE, DELETE
+  changes    Json     // Delta comparison
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+}

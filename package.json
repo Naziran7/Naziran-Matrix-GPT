@@ -1,0 +1,38 @@
+{
+  "name": "naziran-matrix",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:api": "npm --workspace apps/api run dev",
+    "dev:ai": "cd apps/ai-service && uvicorn app.main:app --reload",
+    "prepare": "husky"
+  },
+  "version": "1.0.0",
+  "description": "Starter workspace.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Naziran7/Naziran-Matrix.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Naziran7/Naziran-Matrix/issues"
+  },
+  "homepage": "https://github.com/Naziran7/Naziran-Matrix#readme",
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.8",
+    "typescript": "^7.0.2"
+  }
+}
