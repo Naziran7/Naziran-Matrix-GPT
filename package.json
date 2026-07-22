@@ -9,7 +9,7 @@
     "dev:web": "npm --workspace apps/web run dev",
     "dev:api": "npm --workspace apps/api run dev",
     "dev:ai": "cd apps/ai-service && uvicorn app.main:app --reload",
-    "prepare": "husky"
+    "prepare": "command -v husky >/dev/null 2>&1 && husky || true"
   },
   "version": "1.0.0",
   "description": "Starter workspace.",
