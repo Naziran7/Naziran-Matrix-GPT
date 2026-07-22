@@ -23,10 +23,25 @@ const app = express();
 
 // Security Middlewares
 app.use(helmet());
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'https://naziran-matrix-gpt-web.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5000'
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin as string) || origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
   credentials: true
 }));
+
 
 // Compression & Body Parsers
 app.use(compression());
